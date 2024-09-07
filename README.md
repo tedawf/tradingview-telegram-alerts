@@ -24,10 +24,10 @@ git clone https://github.com/tedawf/tradingview-telegram-alerts.git
 pip install -r requirements.txt
 ```
 
-3. Configure your config.py file:
+3. Configure your .env file:
 
-- Add your TradingView webhook URL.
 - Add your Telegram Bot API token and channel chat ID.
+- Add the PORT number
 
 4. Run the FastAPI application:
 
