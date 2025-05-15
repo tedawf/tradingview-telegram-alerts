@@ -13,9 +13,9 @@ source .venv/bin/activate || {
 echo "Installing/updating python deps"
 pip install -r requirements.txt
 
-echo "Installing playwright headless chromium"
-playwright install-deps
-playwright install chromium
+# echo "Installing playwright headless chromium"
+# playwright install-deps # needs sudo
+# playwright install chromium
 
 echo "Deactivating virtualenv"
 deactivate
