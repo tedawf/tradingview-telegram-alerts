@@ -1,0 +1,48 @@
+name: Deploy to Proxmox
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-to-lxc:
+    name: Deploy to LXC
+    runs-on: self-hosted
+
+    steps:
+      # Commented out cos actually we don't need this yet
+      # - name: Checkout code
+      #   uses: actions/checkout@v4
+
+      - name: SSH into LXC and deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{secrets.HOST}}
+          username: ${{secrets.USERNAME}}
+          key: ${{secrets.KEY}}
+          port: ${{secrets.PORT}}
+          script: |
+            set -e  # Exit immediately if a command exits with a non-zero status.
+
+            APP_DIR="${{secrets.APP_DIR}}"
+            DEPLOY_SCRIPT="deploy.sh"
+            TARGET_COMMIT="${{ github.sha }}"
+
+            echo "Connecting to host: ${{ secrets.HOST }} as user: $(whoami)"
+            echo "Target app dir: ${APP_DIR}"
+            echo "Deployment commit: ${TARGET_COMMIT}"
+
+            echo "Navigating to app dir: ${APP_DIR}"
+            cd "${APP_DIR}"
+
+            echo "Fetching latest changes"
+            git fetch origin
+
+            echo "Resetting to commit ${TARGET_COMMIT}"
+            git reset --hard "${TARGET_COMMIT}"
+
+            echo "Executing deployment script: ./${DEPLOY_SCRIPT}"
+            ./${DEPLOY_SCRIPT}
+
+            echo "Deployment completed"
