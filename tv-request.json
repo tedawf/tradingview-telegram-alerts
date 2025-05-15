@@ -1,7 +1,0 @@
-{
-    "message": "{{ticker}} Crossing {{close}}",
-    "exchange": "{{exchange}}",
-    "ticker": "{{ticker}}",
-    "delivery": "tgt",
-    "adjustment": 500
-}
