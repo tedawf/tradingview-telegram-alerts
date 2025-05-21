@@ -40,7 +40,7 @@ async def receive_alert(request: Request, background_tasks: BackgroundTasks):
 
 
 def _parse_alert_text(text: str):
-    match = re.match(r"(\w+) Crossing ([\d.]+)", text)
+    match = re.match(r"([\w.]+) Crossing ([\d.]+)", text)
     if match:
         return {"ticker": match.group(1), "value": float(match.group(2))}
     return None
