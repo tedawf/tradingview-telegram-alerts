@@ -44,10 +44,11 @@ async def handle_command(request: Request):
     try:
         data = await request.json()
         logger.info(f"command request: {data}")
-        message = data.get("message", {})
-        text = message.get("text", "")
-        chat_id = message["chat"]["id"]
-        reply_id = message["message_id"]
+
+        post = data.get("channel_post", {})
+        text = post.get("text", "")
+        chat_id = post.get("chat", {}).get("id")
+        reply_id = post.get("message_id")
 
         # Only process commands from our channel
         if str(chat_id) != os.getenv("TG_CHANNEL_ID"):
