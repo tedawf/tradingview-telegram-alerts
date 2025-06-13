@@ -2,7 +2,7 @@ from playwright.async_api import async_playwright
 
 
 async def capture_chart(ticker: str, output_path: str):
-    url = f"https://www.tradingview.com/chart/?symbol=BINANCE:{ticker}"
+    url = f"https://www.tradingview.com/chart/?symbol={ticker}"
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=True)
