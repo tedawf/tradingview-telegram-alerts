@@ -41,12 +41,12 @@ Examples:
 
 @app.post("/command")
 async def handle_command(request: Request):
-    logger.info(f"command request: {request}")
     try:
         data = await request.json()
+        logger.info(f"command request: {data}")
         message = data.get("message", {})
         text = message.get("text", "")
-        chat_id = message["sender_chat"]["id"]
+        chat_id = message["chat"]["id"]
         reply_id = message["message_id"]
 
         # Only process commands from our channel
