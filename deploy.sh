@@ -27,4 +27,20 @@ echo "Checking service status..."
 sleep 1
 sudo -n /usr/bin/systemctl status tvta-bot.service --no-pager
 
+# Load variables from .env
+export $(grep -v '^#' .env | xargs)
+
+echo "Setting Telegram webhook..."
+if [[ -z "$TG_BOT_TOKEN" || -z "$DOMAIN" ]]; then
+  echo "Missing TG_BOT_TOKEN or DOMAIN in .env"
+  exit 1
+fi
+
+WEBHOOK_URL="${DOMAIN}/command"
+
+curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d "{\"url\": \"${WEBHOOK_URL}\"}" &&
+  echo "Webhook set to: ${WEBHOOK_URL}"
+
 echo "--- Deployed tvta ---"
