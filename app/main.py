@@ -1,8 +1,10 @@
+import asyncio
 import logging
 import os
 import re
+from contextlib import asynccontextmanager
 
-from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi import FastAPI, Request
 
 from app.chart import capture_chart
 from app.settings import settings
@@ -15,8 +17,18 @@ logging.basicConfig(
     force=True,
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    for _ in range(3):
+        asyncio.create_task(chart_worker())
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 logger = logging.getLogger(__name__)
+
+chart_task_queue = asyncio.Queue()
 
 
 HELP_TEXT = """
@@ -123,7 +135,7 @@ async def handle_show_command(ticker: str, reply_to_id: int):
 
 
 @app.post("/alert")
-async def receive_alert(request: Request, background_tasks: BackgroundTasks):
+async def receive_alert(request: Request):
     payload = await request.body()
     logger.info(f"payload: {payload}")
     text = payload.decode()
@@ -138,7 +150,7 @@ async def receive_alert(request: Request, background_tasks: BackgroundTasks):
 
     ticker = alert_data["ticker"]
     logger.info(f"Starting capture chart task for {ticker}")
-    background_tasks.add_task(capture_chart_task, ticker, response["message_id"], text)
+    await chart_task_queue.put((ticker, response["message_id"], text))
 
     return {"status": "sent"}
 
@@ -150,11 +162,16 @@ def _parse_alert_text(text: str):
     return None
 
 
-async def capture_chart_task(ticker: str, message_id: int, caption: str):
-    image_path = f"/tmp/{ticker}.png"
-
-    try:
-        await capture_chart(ticker, image_path)
-        await edit_message_with_chart(message_id, image_path, caption)
-    except Exception as e:
-        logger.error(f"Error while capturing chart: {e}")
+async def chart_worker():
+    while True:
+        task = await chart_task_queue.get()
+        ticker, message_id, caption = task
+        try:
+            logger.info(f"[WORKER] Processing chart for {ticker}")
+            image_path = f"/tmp/{ticker}_{message_id}.png"
+            await capture_chart(ticker, image_path)
+            await edit_message_with_chart(message_id, image_path, caption)
+        except Exception as e:
+            logger.error(f"[WORKER] Chart error for {ticker}: {e}")
+        finally:
+            chart_task_queue.task_done()
