@@ -1,4 +1,5 @@
 import logging
+import re
 
 from playwright.async_api import async_playwright
 
@@ -10,14 +11,23 @@ logger = logging.getLogger(__name__)
 async def capture_chart(ticker: str, output_path: str):
     settings.load()
 
-    # Use mapping if exists, otherwise use ticker directly
-    mapped_ticker = settings.get_symbol(ticker) or ticker
+    # Prefer mapped
+    mapped = settings.get_symbol(ticker)
+    if mapped:
+        symbol = mapped
+
+    # Else prefer TWSE for digits only
+    elif re.fullmatch(r"\d+", ticker):
+        symbol = f"TWSE:{ticker}"
+
+    # Let TV do the routing
+    else:
+        symbol = ticker
+
     interval = settings["default_interval"]
     theme = settings["chart_theme"]
 
-    url = (
-        f"https://www.tradingview.com/chart/?symbol={mapped_ticker}&interval={interval}"
-    )
+    url = f"https://www.tradingview.com/chart/?symbol={symbol}&interval={interval}"
     if theme == "dark":
         url += "&theme=dark"
     logger.info(f"url: {url}")
