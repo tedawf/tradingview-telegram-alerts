@@ -49,6 +49,7 @@ HELP_TEXT = """
 • <code>/theme THEME</code> - Set chart theme (light/dark/system)
 • <code>/map TICKER EXCHANGE</code> - Map symbol to exchange
 • <code>/unmap TICKER</code> - Remove ticker mapping
+• <code>/showmap</code> - Show current symbol mappings
 • <code>/help</code> - Show this help
 
 <pre>
@@ -57,6 +58,7 @@ Examples:
 /interval 60 → Sets 1-hour default timeframe
 /theme dark → Sets dark mode as default
 /map BTCUSD COINBASE → Maps BTCUSD to Coinbase
+/showmap → Shows all ticker mappings
 </pre>
 """
 
@@ -121,6 +123,9 @@ async def handle_command(request: Request):
                     f"No mapping found for {args[0]}", reply_to_msg_id=reply_id
                 )
 
+        elif command == "/showmap":
+            return await handle_showmap_command(reply_id)
+
         elif command == "/help":
             return await send_message(HELP_TEXT, reply_to_msg_id=reply_id)
 
@@ -129,6 +134,26 @@ async def handle_command(request: Request):
     except Exception as e:
         logging.error(f"Command error: {e}")
         return {"status": "error"}
+
+
+async def handle_showmap_command(reply_to_id: int):
+    try:
+        symbol_map = settings["symbol_map"]
+
+        if not symbol_map:
+            message = "<b>📊 Symbol Mappings</b>\n\nNo symbols mapped"
+        else:
+            message = "<b>📊 Symbol Mappings</b>\n\n"
+            for ticker, exchange_symbol in symbol_map.items():
+                message += f"• <code>{ticker}</code> → <code>{exchange_symbol}</code>\n"
+
+        return await send_message(message, reply_to_msg_id=reply_to_id)
+
+    except Exception as e:
+        logger.error(f"Showmap command error: {e}")
+        return await send_message(
+            "Failed to retrieve symbol mappings", reply_to_msg_id=reply_to_id
+        )
 
 
 async def handle_show_command(browser, ticker: str, reply_to_id: int):
