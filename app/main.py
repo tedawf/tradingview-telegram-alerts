@@ -4,6 +4,7 @@ import os
 import re
 from contextlib import asynccontextmanager
 
+import playwright.async_api as pw
 from fastapi import FastAPI, Request
 
 from app.chart import capture_chart
@@ -20,9 +21,18 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    for _ in range(3):
+    app.state.playwright = await pw.async_playwright().start()
+    app.state.browser = await app.state.playwright.chromium.launch(headless=True)
+    print("[INIT] Playwright and browser launched")
+
+    for _ in range(2):
         asyncio.create_task(chart_worker())
+
     yield
+
+    print("[SHUTDOWN] Closing browser and playwright")
+    await app.state.browser.close()
+    await app.state.playwright.stop()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -75,7 +85,7 @@ async def handle_command(request: Request):
         args = parts[1:]
 
         if command == "/show" and args:
-            return await handle_show_command(args[0], reply_id)
+            return await handle_show_command(app.state.browser, args[0], reply_id)
 
         elif command == "/interval" and args:
             try:
@@ -121,10 +131,10 @@ async def handle_command(request: Request):
         return {"status": "error"}
 
 
-async def handle_show_command(ticker: str, reply_to_id: int):
+async def handle_show_command(browser, ticker: str, reply_to_id: int):
     image_path = f"/tmp/{ticker}_{reply_to_id}.png"
     try:
-        await capture_chart(ticker, image_path)
+        await capture_chart(browser, ticker, image_path)
         await send_chart(image_path=image_path, reply_to_msg_id=reply_to_id)
         return {"status": "sent"}
     except Exception as e:
@@ -163,14 +173,16 @@ def _parse_alert_text(text: str):
 
 
 async def chart_worker():
+    browser = app.state.browser
     while True:
         task = await chart_task_queue.get()
         ticker, message_id, caption = task
         try:
             logger.info(f"[WORKER] Processing chart for {ticker}")
             image_path = f"/tmp/{ticker}_{message_id}.png"
-            await capture_chart(ticker, image_path)
+            await capture_chart(browser, ticker, image_path)
             await edit_message_with_chart(message_id, image_path, caption)
+            await asyncio.sleep(1.0)  # throttle between tasks
         except Exception as e:
             logger.error(f"[WORKER] Chart error for {ticker}: {e}")
         finally:

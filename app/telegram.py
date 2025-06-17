@@ -21,7 +21,7 @@ async def send_message(text: str, reply_to_msg_id: int = None):
     if reply_to_msg_id:
         body["reply_to_message_id"] = reply_to_msg_id
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         res = await client.post(url, json=body)
         res.raise_for_status()
     return res.json().get("result", {})
