@@ -1,51 +1,101 @@
 # TradingView Telegram Alerts
 
-A real-time trading alert system that integrates **TradingView** with **Telegram**, allowing traders to receive customized market notifications directly on Telegram in real-time.
+A simple, self-hosted FastAPI Telegram bot that receives alerts from TradingView, captures charts via Playwright, and delivers them to a Telegram channel instantly.
 
 ![Mobile screenshot](demo.png)
 
 ## Features
 
-- **Real-time Customizable Alerts**: Receive instant text alerts or real-time snapshot of charts from TradingView to a Telegram chat based on any market conditions you set.
-- **FastAPI Webhook**: Lightweight, high-performance webhook built using FastAPI to handle TradingView alerts.
-- **Telegram Bot API**: Alerts are pushed directly to any of your Telegram channel chats via the Telegram Bot API for seamless, 24/7 monitoring.
+- **Instant alerts** from TradingView delivered to Telegram.
+- **Chart screenshots** captured with Playwright (headless Chromium).
+- **Async worker queue** to process chart captures without blocking webhook response.
+- **Telegram commands** for custom intervals, themes, and symbol-to-exchange mapping
+- **Simple self-hosting**: runs well on a Proxmox homelab LXC.
 
-## Try It Out!
+![Bot Commands](commands.png)
 
-1. Clone this repository:
+## Installation
 
 ```bash
 git clone https://github.com/tedawf/tradingview-telegram-alerts.git
-```
-
-2. Install the required dependencies:
-
-```bash
+cd tradingview-telegram-alerts
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+playwright install chromium
 ```
 
-3. Configure your .env file:
+.env.example
 
-- Add your Telegram Bot API token and channel chat ID.
-- Add the PORT number
+```env
+TG_BOT_TOKEN=your_telegram_bot_token
+TG_CHANNEL_ID=-1001234567890   # channel ID (with -100 for channels)
 
-4. Run the FastAPI application:
+# for the bot to reply to your commands (not localhost!)
+DOMAIN=https://your.domain.com # used by deploy.sh script to set webhook for the telegram API
+```
+
+Run:
 
 ```bash
-uvicorn main:app --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-## Tech Stack
+Send a test webhook (text/plain):
 
-- **FastAPI** – A modern, fast (high-performance) web framework for Python.
-- **fly.io** – A powerful platform used to deploy the application, enabling easy scaling and global deployment.
-- **Telegram Bot API** – Sends alerts to Telegram chats.
-- **Selenium** – A headless brower to programmatically take screenshots of the charts.
+```bash
+curl -X POST "http://localhost:8000/alert" -H "Content-Type: text/plain" --data "BTCUSD Crossing 123456"
+```
 
-## Future Improvements
+---
 
-- Add a more detailed configuration interface for easier setup.
-- Explore adding support for multiple Telegram users or groups.
-- Add logging and error handling for better alert tracking.
+## Deployment
 
-Feel free to contribute or fork this repository!
+This repo includes `deploy.sh` which:
+
+- Activates the virtualenv
+- Installs Python dependencies
+- Restarts the `tvta-bot.service` systemd service
+- Sets the Telegram webhook to `$DOMAIN/command`
+
+Example tvta-bot.service:
+
+```ini
+[Unit]
+Description=TradingView Telegram Alerts
+After=network.target
+
+[Service]
+User=tvta_user
+WorkingDirectory=/opt/tvta
+ExecStart=/opt/tvta/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the service:
+
+```bash
+sudo systemctl enable tvta-bot.service
+sudo systemctl start tvta-bot.service
+```
+
+Then run your `deploy.sh` on updates (`git pull`):
+
+```bash
+./deploy.sh
+```
+
+## Notes & Tips & Troubleshooting
+
+- Use /map and /unmap to manage exchange mappings without redeploying.
+- Limit `NUM_WORKERS` in main.py for low-RAM environments or increase the LXC memory.
+- If Playwright fails to launch in an LXC, ensure `nesting=1` and install Playwright dependencies (`playwright install-deps`) or use a full VM.
+
+## Contributing
+
+Contributions are welcome - open an issue or submit a PR.
+
+Feel free to fork this repository!

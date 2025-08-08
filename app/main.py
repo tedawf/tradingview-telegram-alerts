@@ -18,6 +18,8 @@ logging.basicConfig(
     force=True,
 )
 
+NUM_WORKERS = 2
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,7 +27,7 @@ async def lifespan(app: FastAPI):
     app.state.browser = await app.state.playwright.chromium.launch(headless=True)
     print("[INIT] Playwright and browser launched")
 
-    for _ in range(2):
+    for _ in range(NUM_WORKERS):
         asyncio.create_task(chart_worker())
 
     yield
